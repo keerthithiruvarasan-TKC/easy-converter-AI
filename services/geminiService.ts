@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { EquivalencyResult, TargetBrand, ApplicationContext } from "../types";
 
-const apiKey = process.env.API_KEY || '';
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 // Knowledge Base Injection for Speed
@@ -43,7 +43,7 @@ Your Task:
 `;
 
 export const findEquivalent = async (
-  inputContent: string, 
+  inputContent: string,
   inputType: 'text' | 'image' | 'pdf',
   targetBrand: TargetBrand,
   context: ApplicationContext,
@@ -52,7 +52,7 @@ export const findEquivalent = async (
 ): Promise<EquivalencyResult> => {
 
   const parts: any[] = [];
-  
+
   // Construct a dense engineering context
   let contextString = `
     APPLICATION CONTEXT (Use this to select the right Grade/Geometry):
@@ -70,7 +70,8 @@ export const findEquivalent = async (
 
   // Improved Prompting Strategy: Separate Input from Context
   if (inputType === 'text') {
-    parts.push({ text: `
+    parts.push({
+      text: `
     USER_INPUT_TO_CONVERT: "${inputContent}"
     
     INSTRUCTIONS:
@@ -86,7 +87,8 @@ export const findEquivalent = async (
         mimeType: mimeType
       }
     });
-    parts.push({ text: `
+    parts.push({
+      text: `
     INSTRUCTIONS:
     1. LOOK at the image provided. Read the text/labels on the box or tool.
     2. EXTRACT the part number and brand.
@@ -103,7 +105,7 @@ export const findEquivalent = async (
       config: {
         systemInstruction: getSystemInstruction(targetBrand),
         tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 2048 }, 
+        thinkingConfig: { thinkingBudget: 2048 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -153,29 +155,29 @@ export const findEquivalent = async (
               }
             },
             alternatives: {
-                type: Type.ARRAY,
-                items: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  brand: { type: Type.STRING },
+                  name: { type: Type.STRING },
+                  partNumber: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  specs: {
                     type: Type.OBJECT,
                     properties: {
-                        brand: { type: Type.STRING },
-                        name: { type: Type.STRING },
-                        partNumber: { type: Type.STRING },
-                        description: { type: Type.STRING },
-                        specs: {
-                          type: Type.OBJECT,
-                          properties: {
-                            isoCode: { type: Type.STRING },
-                            grade: { type: Type.STRING },
-                            coating: { type: Type.STRING },
-                            material: { type: Type.STRING },
-                            geometry: { type: Type.STRING },
-                            application: { type: Type.STRING },
-                            cuttingSpeed: { type: Type.STRING },
-                            feedRate: { type: Type.STRING }
-                          }
-                        }
+                      isoCode: { type: Type.STRING },
+                      grade: { type: Type.STRING },
+                      coating: { type: Type.STRING },
+                      material: { type: Type.STRING },
+                      geometry: { type: Type.STRING },
+                      application: { type: Type.STRING },
+                      cuttingSpeed: { type: Type.STRING },
+                      feedRate: { type: Type.STRING }
                     }
+                  }
                 }
+              }
             },
             reasoning: { type: Type.STRING },
             confidenceScore: { type: Type.NUMBER },
@@ -192,20 +194,20 @@ export const findEquivalent = async (
 
     // Safety Fallbacks
     if (!result.competitor) {
-        result.competitor = { 
-            brand: "Generic/ISO", 
-            name: "Identified Tool", 
-            partNumber: inputType === 'text' ? inputContent : "Extracted from Image", 
-            description: "Standard Insert", 
-            specs: {} 
-        };
+      result.competitor = {
+        brand: "Generic/ISO",
+        name: "Identified Tool",
+        partNumber: inputType === 'text' ? inputContent : "Extracted from Image",
+        description: "Standard Insert",
+        specs: {}
+      };
     } else if (result.competitor.partNumber === "N/A" || !result.competitor.partNumber) {
-        // If model failed to populate part number but we have text input, force it.
-        if (inputType === 'text') result.competitor.partNumber = inputContent;
+      // If model failed to populate part number but we have text input, force it.
+      if (inputType === 'text') result.competitor.partNumber = inputContent;
     }
 
     if (!result.recommendation) {
-        result.recommendation = { brand: targetBrand, name: "Pending", partNumber: "Contact Support", description: "Analysis Incomplete", specs: {} };
+      result.recommendation = { brand: targetBrand, name: "Pending", partNumber: "Contact Support", description: "Analysis Incomplete", specs: {} };
     }
 
     // Extract Grounding
@@ -231,7 +233,7 @@ export const chatWithEngineer = async (
   newMessage: string
 ) => {
   const brand = contextData.recommendation?.brand || "Technical";
-  
+
   try {
     const chat = ai.chats.create({
       model: 'gemini-3-pro-preview',
