@@ -105,7 +105,7 @@ export const findEquivalent = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       contents: { parts },
       config: {
         systemInstruction: getSystemInstruction(targetBrand),
@@ -244,7 +244,7 @@ export const chatWithEngineer = async (
 
   try {
     const chat = ai.chats.create({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-1.5-flash',
       config: {
         systemInstruction: `You are a Technical Support Engineer for ${brand}. Answer questions based on the provided product analysis.`
       },
