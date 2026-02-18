@@ -1,0 +1,7 @@
+{
+  "name": "E-T-C | Cutting tool convertor ",
+  "description": "AI-powered tool selector. Upload photos or text to find equivalent cutting tools from Tungaloy, Toolflo, NTK, or Morse.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
