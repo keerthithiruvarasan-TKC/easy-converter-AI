@@ -103,168 +103,250 @@ export const findEquivalent = async (
     ` });
   }
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: { parts },
-      config: {
-        systemInstruction: getSystemInstruction(targetBrand),
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            competitor: {
+  // Helper for model fallback
+  const generateWithFallback = async (parts: any[], systemInstruction: string) => {
+    const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
+
+    for (const model of models) {
+      try {
+        console.log(`Attempting generation with model: ${model}`);
+        const response = await ai.models.generateContent({
+          model: model,
+          contents: { parts },
+          config: {
+            systemInstruction: systemInstruction,
+            tools: [{ googleSearch: {} }],
+            responseMimeType: "application/json",
+            responseSchema: {
               type: Type.OBJECT,
               properties: {
-                brand: { type: Type.STRING },
-                name: { type: Type.STRING },
-                partNumber: { type: Type.STRING },
-                description: { type: Type.STRING },
-                specs: {
+                competitor: {
                   type: Type.OBJECT,
                   properties: {
-                    isoCode: { type: Type.STRING },
-                    grade: { type: Type.STRING },
-                    coating: { type: Type.STRING },
-                    material: { type: Type.STRING },
-                    geometry: { type: Type.STRING },
-                    application: { type: Type.STRING },
-                    cuttingSpeed: { type: Type.STRING },
-                    feedRate: { type: Type.STRING }
-                  }
-                }
-              }
-            },
-            recommendation: {
-              type: Type.OBJECT,
-              properties: {
-                brand: { type: Type.STRING, description: `Must be ${targetBrand}` },
-                name: { type: Type.STRING },
-                partNumber: { type: Type.STRING },
-                description: { type: Type.STRING },
-                specs: {
-                  type: Type.OBJECT,
-                  properties: {
-                    isoCode: { type: Type.STRING },
-                    grade: { type: Type.STRING },
-                    coating: { type: Type.STRING },
-                    material: { type: Type.STRING },
-                    geometry: { type: Type.STRING },
-                    application: { type: Type.STRING },
-                    cuttingSpeed: { type: Type.STRING },
-                    feedRate: { type: Type.STRING }
-                  }
-                }
-              }
-            },
-            alternatives: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  brand: { type: Type.STRING },
-                  name: { type: Type.STRING },
-                  partNumber: { type: Type.STRING },
-                  description: { type: Type.STRING },
-                  specs: {
-                    type: Type.OBJECT,
-                    properties: {
-                      isoCode: { type: Type.STRING },
-                      grade: { type: Type.STRING },
-                      coating: { type: Type.STRING },
-                      material: { type: Type.STRING },
-                      geometry: { type: Type.STRING },
-                      application: { type: Type.STRING },
-                      cuttingSpeed: { type: Type.STRING },
-                      feedRate: { type: Type.STRING }
+                    brand: { type: Type.STRING },
+                    name: { type: Type.STRING },
+                    partNumber: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    specs: {
+                      type: Type.OBJECT,
+                      properties: {
+                        isoCode: { type: Type.STRING },
+                        grade: { type: Type.STRING },
+                        coating: { type: Type.STRING },
+                        material: { type: Type.STRING },
+                        geometry: { type: Type.STRING },
+                        application: { type: Type.STRING },
+                        cuttingSpeed: { type: Type.STRING },
+                        feedRate: { type: Type.STRING }
+                      }
                     }
                   }
-                }
+                },
+                recommendation: {
+                  type: Type.OBJECT,
+                  properties: {
+                    brand: { type: Type.STRING, description: `Must be a valid brand` },
+                    name: { type: Type.STRING },
+                    partNumber: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    specs: {
+                      type: Type.OBJECT,
+                      properties: {
+                        isoCode: { type: Type.STRING },
+                        grade: { type: Type.STRING },
+                        coating: { type: Type.STRING },
+                        material: { type: Type.STRING },
+                        geometry: { type: Type.STRING },
+                        application: { type: Type.STRING },
+                        cuttingSpeed: { type: Type.STRING },
+                        feedRate: { type: Type.STRING }
+                      }
+                    }
+                  }
+                },
+                alternatives: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      brand: { type: Type.STRING },
+                      name: { type: Type.STRING },
+                      partNumber: { type: Type.STRING },
+                      description: { type: Type.STRING },
+                      specs: {
+                        type: Type.OBJECT,
+                        properties: {
+                          isoCode: { type: Type.STRING },
+                          grade: { type: Type.STRING },
+                          coating: { type: Type.STRING },
+                          material: { type: Type.STRING },
+                          geometry: { type: Type.STRING },
+                          application: { type: Type.STRING },
+                          cuttingSpeed: { type: Type.STRING },
+                          feedRate: { type: Type.STRING }
+                        }
+                      }
+                    }
+                  }
+                },
+                reasoning: { type: Type.STRING },
+                confidenceScore: { type: Type.NUMBER },
+                missingParams: { type: Type.ARRAY, items: { type: Type.STRING } },
+                educationalTip: { type: Type.STRING },
+                replacementStrategy: { type: Type.STRING, enum: ['INSERT_ONLY', 'FULL_ASSEMBLY'], description: "INSERT_ONLY if ISO compatible, FULL_ASSEMBLY if tool body needed" }
               }
-            },
-            reasoning: { type: Type.STRING },
-            confidenceScore: { type: Type.NUMBER },
-            missingParams: { type: Type.ARRAY, items: { type: Type.STRING } },
-            educationalTip: { type: Type.STRING },
-            replacementStrategy: { type: Type.STRING, enum: ['INSERT_ONLY', 'FULL_ASSEMBLY'], description: "INSERT_ONLY if ISO compatible, FULL_ASSEMBLY if tool body needed" }
+            }
           }
+        });
+        return response;
+      } catch (error: any) {
+        console.warn(`Model ${model} failed:`, error.message);
+        // If it's the last model, throw the error
+        if (model === models[models.length - 1]) throw error;
+        // Otherwise continue to next model
+      }
+    }
+    throw new Error("All models failed");
+  };
+
+  export const findEquivalent = async (
+    inputContent: string,
+    inputType: 'text' | 'image' | 'pdf',
+    targetBrand: TargetBrand,
+    context: ApplicationContext,
+    mimeType: string = 'image/jpeg',
+    refinedParams?: Record<string, string>
+  ): Promise<EquivalencyResult> => {
+
+    const parts: any[] = [];
+
+    // Construct a dense engineering context
+    let contextString = `
+    APPLICATION CONTEXT (Use this to select the right Grade/Geometry):
+    - Material: ${context.material}
+    - Operation: ${context.operationType} -> ${context.subOperationType}
+    - Cutting Speed (Vc): ${context.params.vc || 'Standard'}
+    - Failure Mode to Solve: ${context.params.failureMode || 'None/General Wear'}
+    - Goal: ${context.params.expectation || 'Performance'}
+    - Machine: ${context.params.machinePower}
+  `;
+
+    if (refinedParams) {
+      contextString += `\n    - REFINED DATA: ${JSON.stringify(refinedParams)}`;
+    }
+
+    // Improved Prompting Strategy: Separate Input from Context
+    if (inputType === 'text') {
+      parts.push({
+        text: `
+    USER_INPUT_TO_CONVERT: "${inputContent}"
+    
+    INSTRUCTIONS:
+    1. EXTRACT the part number from the USER_INPUT_TO_CONVERT above. (e.g. if text is "CNMG 120408", that is the part number).
+    2. ANALYZE the APPLICATION CONTEXT below to choose the best ${targetBrand} grade.
+    
+    ${contextString}
+    ` });
+    } else {
+      parts.push({
+        inlineData: {
+          data: inputContent, // base64 string
+          mimeType: mimeType
+        }
+      });
+      parts.push({
+        text: `
+    INSTRUCTIONS:
+    1. LOOK at the image provided. Read the text/labels on the box or tool.
+    2. EXTRACT the part number and brand.
+    3. ANALYZE the APPLICATION CONTEXT below to choose the best ${targetBrand} grade.
+    
+    ${contextString}
+    ` });
+    }
+
+    try {
+      const response = await generateWithFallback(parts, getSystemInstruction(targetBrand));
+
+      const jsonText = response.text || "{}";
+      const result = JSON.parse(jsonText) as EquivalencyResult;
+
+      // Safety Fallbacks
+      if (!result.competitor) {
+        result.competitor = {
+          brand: "Generic/ISO",
+          name: "Identified Tool",
+          partNumber: inputType === 'text' ? inputContent : "Extracted from Image",
+          description: "Standard Insert",
+          specs: {}
+        };
+      } else if (result.competitor.partNumber === "N/A" || !result.competitor.partNumber) {
+        // If model failed to populate part number but we have text input, force it.
+        if (inputType === 'text') result.competitor.partNumber = inputContent;
+      }
+
+      if (!result.recommendation) {
+        result.recommendation = { brand: targetBrand, name: "Pending", partNumber: "Contact Support", description: "Analysis Incomplete", specs: {} };
+      }
+
+      // Extract Grounding
+      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+      const sources: { uri: string; title: string }[] = [];
+      if (groundingChunks) {
+        groundingChunks.forEach(chunk => {
+          if (chunk.web?.uri && chunk.web?.title) sources.push({ uri: chunk.web.uri, title: chunk.web.title });
+        });
+      }
+      result.sources = Array.from(new Map(sources.map(s => [s.uri, s])).values()).slice(0, 3);
+
+      return result;
+    } catch (error) {
+      console.error("Equivalency lookup failed detailed:", error);
+      if (error instanceof Error) {
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      throw new Error("Could not identify product. Please try a clearer image or description. Details logged to console.");
+    }
+  };
+
+  export const chatWithEngineer = async (
+    history: { role: 'user' | 'model'; parts: { text: string }[] }[],
+    contextData: any,
+    newMessage: string
+  ) => {
+    const brand = contextData.recommendation?.brand || "Technical";
+    const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro'];
+
+    for (const model of models) {
+      try {
+        const chat = ai.chats.create({
+          model: model,
+          config: {
+            systemInstruction: `You are a Technical Support Engineer for ${brand}. Answer questions based on the provided product analysis.`
+          },
+          history: [
+            {
+              role: 'user',
+              parts: [{ text: `Current Analysis Context: ${JSON.stringify(contextData)}` }]
+            },
+            {
+              role: 'model',
+              parts: [{ text: `Understood. I am ready to answer questions about the ${brand} solution.` }]
+            },
+            ...history
+          ],
+        });
+
+        const result = await chat.sendMessage({ message: newMessage });
+        return result.text || "I'm not sure. Can you clarify the machining conditions?";
+      } catch (error: any) {
+        console.warn(`Chat model ${model} failed:`, error.message);
+        if (model === models[models.length - 1]) {
+          console.error("Chat failed final:", error);
+          return "I encountered an error processing your engineering query. Please try again later.";
         }
       }
-    });
-
-    const jsonText = response.text || "{}";
-    const result = JSON.parse(jsonText) as EquivalencyResult;
-
-    // Safety Fallbacks
-    if (!result.competitor) {
-      result.competitor = {
-        brand: "Generic/ISO",
-        name: "Identified Tool",
-        partNumber: inputType === 'text' ? inputContent : "Extracted from Image",
-        description: "Standard Insert",
-        specs: {}
-      };
-    } else if (result.competitor.partNumber === "N/A" || !result.competitor.partNumber) {
-      // If model failed to populate part number but we have text input, force it.
-      if (inputType === 'text') result.competitor.partNumber = inputContent;
     }
-
-    if (!result.recommendation) {
-      result.recommendation = { brand: targetBrand, name: "Pending", partNumber: "Contact Support", description: "Analysis Incomplete", specs: {} };
-    }
-
-    // Extract Grounding
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    const sources: { uri: string; title: string }[] = [];
-    if (groundingChunks) {
-      groundingChunks.forEach(chunk => {
-        if (chunk.web?.uri && chunk.web?.title) sources.push({ uri: chunk.web.uri, title: chunk.web.title });
-      });
-    }
-    result.sources = Array.from(new Map(sources.map(s => [s.uri, s])).values()).slice(0, 3);
-
-    return result;
-  } catch (error) {
-    console.error("Equivalency lookup failed detailed:", error);
-    if (error instanceof Error) {
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    }
-    throw new Error("Could not identify product. Please try a clearer image or description. Details logged to console.");
-  }
-};
-
-export const chatWithEngineer = async (
-  history: { role: 'user' | 'model'; parts: { text: string }[] }[],
-  contextData: any,
-  newMessage: string
-) => {
-  const brand = contextData.recommendation?.brand || "Technical";
-
-  try {
-    const chat = ai.chats.create({
-      model: 'gemini-1.5-flash',
-      config: {
-        systemInstruction: `You are a Technical Support Engineer for ${brand}. Answer questions based on the provided product analysis.`
-      },
-      history: [
-        {
-          role: 'user',
-          parts: [{ text: `Current Analysis Context: ${JSON.stringify(contextData)}` }]
-        },
-        {
-          role: 'model',
-          parts: [{ text: `Understood. I am ready to answer questions about the ${brand} solution.` }]
-        },
-        ...history
-      ],
-    });
-
-    const result = await chat.sendMessage({ message: newMessage });
-    return result.text || "I'm not sure. Can you clarify the machining conditions?";
-  } catch (error) {
-    console.error("Chat failed detailed:", error);
-    return "I encountered an error processing your engineering query.";
-  }
-};
+    return "Error processing request.";
+  };
