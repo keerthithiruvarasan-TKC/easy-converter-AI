@@ -2,6 +2,11 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { EquivalencyResult, TargetBrand, ApplicationContext } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+
+if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+  console.warn("Gemini API Key is missing or invalid.");
+}
+
 const ai = new GoogleGenAI({ apiKey });
 
 // Knowledge Base Injection for Speed
