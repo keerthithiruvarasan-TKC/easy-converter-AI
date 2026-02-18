@@ -105,12 +105,11 @@ export const findEquivalent = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.0-flash',
       contents: { parts },
       config: {
         systemInstruction: getSystemInstruction(targetBrand),
         tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 2048 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -227,8 +226,12 @@ export const findEquivalent = async (
 
     return result;
   } catch (error) {
-    console.error("Equivalency lookup failed", error);
-    throw new Error("Could not identify product. Please try a clearer image or description.");
+    console.error("Equivalency lookup failed detailed:", error);
+    if (error instanceof Error) {
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+    throw new Error("Could not identify product. Please try a clearer image or description. Details logged to console.");
   }
 };
 
@@ -241,7 +244,7 @@ export const chatWithEngineer = async (
 
   try {
     const chat = ai.chats.create({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.0-flash',
       config: {
         systemInstruction: `You are a Technical Support Engineer for ${brand}. Answer questions based on the provided product analysis.`
       },
@@ -261,7 +264,7 @@ export const chatWithEngineer = async (
     const result = await chat.sendMessage({ message: newMessage });
     return result.text || "I'm not sure. Can you clarify the machining conditions?";
   } catch (error) {
-    console.error("Chat failed", error);
+    console.error("Chat failed detailed:", error);
     return "I encountered an error processing your engineering query.";
   }
 };
