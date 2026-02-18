@@ -1,17 +1,10 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# easy-converter-AI
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/06773d85-da7a-459f-9725-44780c6abe56
+Visual based product selection, also support manual inputs. Only suggest product based on users inputs about current data available and provide solution with the target brand - for cutting tool conversion.
 
 ## Run Locally
 
 **Prerequisites:**  Node.js
-
 
 1. Install dependencies:
    `npm install`
